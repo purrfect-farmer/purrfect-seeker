@@ -11,7 +11,7 @@ module.exports = (program, inquirer, chalk) => {
       const db = require("../db/models");
 
       const servers = await db.Server.findAll({
-        attributes: ["id", "name", "address", "key"],
+        attributes: ["name", "address", "key", "id"],
       });
 
       console.log(chalk.bold.green("Servers retrieved!"));
