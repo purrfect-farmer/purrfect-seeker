@@ -1,5 +1,0 @@
-# Start Server
-@reboot cd /home/ubuntu/purrfect-seeker && screen -dmS server php artisan serve --host 0.0.0.0
-
-# Run Scheduled Commands
-* * * * * cd /home/ubuntu/purrfect-seeker && php artisan schedule:run >> /dev/null 2>&1
