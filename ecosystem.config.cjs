@@ -5,12 +5,13 @@ module.exports = {
     {
       name: process.env.PM2_APP_NAME ?? "purrfect-seeker",
       script: "pnpm",
-      args: "start",
+      args: "start --options",
       interpreter: "none",
       cwd: __dirname,
       env: {
         PORT: process.env.PORT ?? 3000,
         NODE_ENV: process.env.NODE_ENV ?? "production",
+        FORCE_COLOR: true,
       },
     },
   ],
