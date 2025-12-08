@@ -1,16 +1,19 @@
-require("dotenv/config");
+const fs = require("fs");
+const path = require("path");
+const dotenv = require("dotenv");
+const env = dotenv.parse(fs.readFileSync(path.join(__dirname, ".env")));
 
 module.exports = {
   apps: [
     {
-      name: process.env.PM2_APP_NAME ?? "purrfect-seeker",
+      name: env.PM2_APP_NAME ?? "purrfect-seeker",
       script: "pnpm",
       args: "start --options",
       interpreter: "none",
       cwd: __dirname,
       env: {
-        PORT: process.env.PORT ?? 3000,
-        NODE_ENV: process.env.NODE_ENV ?? "production",
+        PORT: env.PORT ?? 3000,
+        NODE_ENV: env.NODE_ENV ?? "production",
         FORCE_COLOR: true,
       },
     },
