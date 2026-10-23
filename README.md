@@ -55,7 +55,7 @@ Responses never include a server's key. All origins are allowed (CORS).
 
 | Method | Path                  | Description                                    |
 | ------ | --------------------- | ---------------------------------------------- |
-| `GET`  | `/api/servers`        | All servers, ordered by name                   |
+| `GET`  | `/api/servers`        | All servers, ordered by name (numbers in number order) |
 | `GET`  | `/api/servers/:id`    | One server, `404` when unknown                 |
 | `POST` | `/api/servers/update` | Set `name` and `address` for the server owning `key` |
 

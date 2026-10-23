@@ -36,6 +36,21 @@ test("lists servers without their keys", async (t) => {
   assert.equal("key" in item, false);
 });
 
+test("lists servers with numbers in number order", async (t) => {
+  const app = await build(t);
+
+  for (const name of ["Priest (10)", "Priest (2)", "Priest (1)"]) {
+    await app.db.Server.create({ name, address: "http://1.1.1.1" });
+  }
+
+  const res = await app.inject({ url: "/api/servers" });
+
+  assert.deepEqual(
+    res.json().map((item) => item.name),
+    ["Priest (1)", "Priest (2)", "Priest (10)"]
+  );
+});
+
 test("gets a server by id", async (t) => {
   const { app, server } = await setup(t);
   const res = await app.inject({ url: `/api/servers/${server.id}` });

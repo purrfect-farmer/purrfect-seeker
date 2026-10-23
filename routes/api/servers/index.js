@@ -4,6 +4,7 @@ import {
   serverSchema,
   updateServerBodySchema,
 } from "../../../schemas/server.js";
+import sortByName from "../../../lib/sort-by-name.js";
 
 /** @param {import("fastify").FastifyInstance} fastify */
 export default async function (fastify) {
@@ -14,7 +15,7 @@ export default async function (fastify) {
     "/",
     { schema: { response: { 200: serverListSchema } } },
     async function () {
-      return Server.findAll({ order: [["name", "ASC"]] });
+      return sortByName(await Server.findAll());
     }
   );
 
