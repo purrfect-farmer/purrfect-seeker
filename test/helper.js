@@ -1,37 +1,22 @@
-'use strict'
+import path from "node:path";
+import { Environment } from "../enums/environment.js";
+import { build as buildApplication } from "fastify-cli/helper.js";
 
-// This file contains code that we reuse
-// between our tests.
+/** Use the in-memory test database */
+process.env.NODE_ENV = Environment.TEST;
 
-const { build: buildApplication } = require('fastify-cli/helper')
-const path = require('node:path')
-const AppPath = path.join(__dirname, '..', 'app.js')
+const appPath = path.join(import.meta.dirname, "..", "app.js");
 
-// Fill in this config with all the configurations
-// needed for testing the application
-function config () {
-  return {
-    skipOverride: true // Register our application with fastify-plugin
-  }
-}
+/**
+ * Build the app with a fresh, migrated database and close it after the test
+ * @param {import("node:test").TestContext} t
+ */
+export async function build(t) {
+  const app = await buildApplication([appPath], { skipOverride: true });
 
-// automatically build and tear down our instance
-async function build (t) {
-  // you can set all the options supported by the fastify CLI command
-  const argv = [AppPath]
+  t.after(() => app.close());
 
-  // fastify-plugin ensures that all decorators
-  // are exposed for testing purposes, this is
-  // different from the production setup
-  const app = await buildApplication(argv, config())
+  await app.db.sequelize.sync();
 
-  // close the app after we are done
-  t.after(() => app.close())
-
-  return app
-}
-
-module.exports = {
-  config,
-  build
+  return app;
 }

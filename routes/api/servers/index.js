@@ -1,73 +1,54 @@
-"use strict";
+import {
+  serverIdParamsSchema,
+  serverListSchema,
+  serverSchema,
+  updateServerBodySchema,
+} from "../../../schemas/server.js";
 
-const db = require("../../../db/models");
+/** @param {import("fastify").FastifyInstance} fastify */
+export default async function (fastify) {
+  const { Server } = fastify.db;
 
-/**
- * @param {import("fastify").FastifyInstance} fastify
- * @param {object} opts
- */
-module.exports = async function (fastify, opts) {
   /** Get all servers */
-  fastify.get("/", async function (request, reply) {
-    return await db.Server.findAll();
-  });
+  fastify.get(
+    "/",
+    { schema: { response: { 200: serverListSchema } } },
+    async function () {
+      return Server.findAll({ order: [["name", "ASC"]] });
+    }
+  );
 
   /** Get a particular server */
   fastify.get(
     "/:id",
     {
       schema: {
-        params: {
-          type: "object",
-          properties: {
-            id: { type: "string", format: "uuid" },
-          },
-          required: ["id"],
-        },
+        params: serverIdParamsSchema,
+        response: { 200: serverSchema },
       },
     },
     async function (request, reply) {
-      return await db.Server.findByPk(request.params.id);
+      const server = await Server.findByPk(request.params.id);
+
+      return server ?? reply.notFound("Server not found");
     }
   );
 
-  /** Update a server */
+  /** Update a server's name and address by its key */
   fastify.post(
     "/update",
-    {
-      schema: {
-        body: {
-          type: "object",
-          required: ["key", "name", "address"],
-          properties: {
-            key: { type: "string" },
-            name: { type: "string" },
-            address: { type: "string", format: "uri" },
-          },
-        },
-      },
-    },
+    { schema: { body: updateServerBodySchema } },
     async function (request, reply) {
-      try {
-        const [count] = await db.Server.update(
-          {
-            name: request.body.name,
-            address: request.body.address,
-          },
-          {
-            where: { key: request.body.key },
-          }
-        );
+      const { key, name, address } = request.body;
+      const server = await Server.findOne({ where: { key } });
 
-        if (count === 0) {
-          return reply.status(404).send({ error: "Invalid or unknown key" });
-        }
-
-        return { message: "Server updated successfully" };
-      } catch (err) {
-        request.log.error(err);
-        return reply.status(500).send({ error: "Internal Server Error" });
+      if (!server) {
+        return reply.status(404).send({ error: "Invalid or unknown key" });
       }
+
+      await server.update({ name, address });
+
+      return { message: "Server updated successfully" };
     }
   );
-};
+}
