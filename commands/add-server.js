@@ -8,11 +8,13 @@ module.exports = (program, inquirer, chalk) => {
     .command("add-server")
     .description("Adds a server")
     .action(async () => {
-      const { default: cryptoRandomString } = require("crypto-random-string");
       const db = require("../db/models");
+      const generateKey = require("./support/generate-key");
+      const printServer = require("./support/print-server");
+      const validateRequired = require("./support/validate-required");
 
       const { id, key, name, address } = await inquirer.prompt([
-        { name: "name", message: "Name:", required: true },
+        { name: "name", message: "Name:", validate: validateRequired },
         { name: "address", message: "Address (Optional):" },
         { name: "id", message: "ID (Optional):" },
         { name: "key", message: "Key (Optional):" },
@@ -21,28 +23,13 @@ module.exports = (program, inquirer, chalk) => {
       /** Create Server */
       const server = await db.Server.create({
         ...(id && { id }),
-        name,
+        name: name.trim(),
         address,
-        key: key || cryptoRandomString({ length: 16, type: "alphanumeric" }),
+        key: key || generateKey(),
       });
 
       /** Success Message */
       console.log(chalk.bold.green("Server created successfully!"));
-
-      /** ID */
-      console.log(`${chalk.bold.blue("ID:")} ${chalk.bold.green(server.id)}`);
-
-      /** Key */
-      console.log(`${chalk.bold.blue("Key:")} ${chalk.bold.green(server.key)}`);
-
-      /** Name */
-      console.log(
-        `${chalk.bold.blue("Name:")} ${chalk.bold.green(server.name)}`
-      );
-
-      /** Address */
-      console.log(
-        `${chalk.bold.blue("Address:")} ${chalk.bold.green(server.address)}`
-      );
+      printServer(chalk, server);
     });
 };
