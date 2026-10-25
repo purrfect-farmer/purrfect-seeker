@@ -1,17 +1,69 @@
 #!/usr/bin/env bash
 
 # Installs Purrfect Seeker and optionally registers Purrfect Fly instances.
-# Usage: install.sh [port] [fly-name] [fly-count] [fly-base-port]
+# Usage: install.sh [--port 3000] [--fly-name Example] [--fly-count 10] [--fly-base-port 4001]
 # Seeker is reachable at http://<ip>:<port> through Nginx. Port defaults to the existing
-# site's port, or 3000; pass "" to keep it while registering Fly servers.
+# site's port, or 3000.
 # With fly-name, adds "<fly-name> (n)" at http://<ip>:<fly-base-port + n - 1>.
 
 set -e
 
-PORT_ARG="$1"
-FLY_NAME="$2"
-FLY_COUNT="${3:-10}"
-FLY_BASE_PORT="${4:-4001}"
+PORT_ARG=""
+FLY_NAME=""
+FLY_COUNT=10
+FLY_BASE_PORT=4001
+
+# Print the usage message
+print_usage() {
+    cat <<'EOF'
+Usage: install.sh [--port 3000] [--fly-name Example] [--fly-count 10] [--fly-base-port 4001]
+
+  --port           Public port Seeker is served on (default: the existing site's, else 3000)
+  --fly-name       Register Fly servers named "<fly-name> (n)" (default: none, don't register)
+  --fly-count      Register Fly servers 1 to fly-count (default: 10)
+  --fly-base-port  Public port of Fly server 1 (default: 4001)
+EOF
+}
+
+# Print an error and the usage message, then stop
+fail_usage() {
+    echo "$1" >&2
+    print_usage >&2
+    exit 1
+}
+
+# Stop unless the flag's value is a positive whole number (or not given)
+require_positive_int() {
+    if [ -n "$2" ] && ! [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
+        fail_usage "$1 must be a positive whole number, got: $2"
+    fi
+}
+
+while [ $# -gt 0 ]; do
+    flag="$1"
+
+    case "$flag" in
+        -h|--help) print_usage; exit 0 ;;
+        --*=*) set -- "${flag%%=*}" "${flag#*=}" "${@:2}"; continue ;;
+        --port|--fly-name|--fly-count|--fly-base-port) ;;
+        *) fail_usage "Unknown option: $flag" ;;
+    esac
+
+    [ $# -ge 2 ] || fail_usage "Missing value for $flag"
+
+    case "$flag" in
+        --port) PORT_ARG="$2" ;;
+        --fly-name) FLY_NAME="$2" ;;
+        --fly-count) FLY_COUNT="$2" ;;
+        --fly-base-port) FLY_BASE_PORT="$2" ;;
+    esac
+
+    shift 2
+done
+
+require_positive_int "--port" "$PORT_ARG"
+require_positive_int "--fly-count" "$FLY_COUNT"
+require_positive_int "--fly-base-port" "$FLY_BASE_PORT"
 
 REPO_URL="https://github.com/purrfect-farmer/purrfect-seeker.git"
 APP_DIR="$HOME/purrfect-seeker"
