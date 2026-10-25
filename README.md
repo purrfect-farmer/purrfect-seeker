@@ -13,6 +13,48 @@ Built with [Fastify](https://fastify.dev), [Sequelize](https://sequelize.org) an
 - Node.js 22.12 or newer
 - pnpm
 
+## Install on a VPS
+
+```sh
+curl -o- https://raw.githubusercontent.com/purrfect-farmer/purrfect-seeker/main/install.sh | bash
+```
+
+Arguments are positional and all optional:
+
+| # | Argument | Default | Role |
+| - | -------- | ------- | ---- |
+| 1 | `port` | `3000` | Public port Seeker is served on through Nginx. Node runs on this port + 10000 (`13000` by default). |
+| 2 | `fly-name` | none | Name of the Fly servers to register, as `<fly-name> (n)`. Leave it out to only install Seeker. |
+| 3 | `fly-count` | `10` | How many Fly servers to register, `1` to `fly-count`. |
+| 4 | `fly-base-port` | `4001` | Public port of the first Fly server; server `n` is registered at `http://<ip>:<fly-base-port + n - 1>`. |
+
+It installs Nginx, Node.js (NVM), pnpm and pm2, clones `~/purrfect-seeker`, runs the migrations
+and starts it with pm2.
+
+### With Purrfect Fly instances
+
+Pass `fly-name` to also register Fly servers named `<fly-name> (n)` at `http://<ip>:<fly-base-port + n - 1>`.
+Names already registered are skipped, so it can be run again safely. For a server with Seeker on `3000`
+and 10 Fly instances on `4001` to `4010`:
+
+```sh
+curl -o- https://raw.githubusercontent.com/purrfect-farmer/purrfect-seeker/main/install.sh | bash -s -- 3000 Example 10 4001
+curl -o- https://raw.githubusercontent.com/purrfect-farmer/purrfect-farmer/main/apps/purrfect-fly/install-many.sh | bash -s -- example Example 10 4001
+```
+
+The first command takes the arguments in the table above. The second is Purrfect Fly's
+[`install-many.sh`](https://github.com/purrfect-farmer/purrfect-farmer/tree/main/apps/purrfect-fly#multiple-instances-on-one-server);
+give it the same name, count and base port:
+
+| # | Argument | Default | Role |
+| - | -------- | ------- | ---- |
+| 1 | `slug` | `example` | Folder and PM2 name prefix: instance `n` lives in `~/<slug>-n` and runs as PM2 app `<slug>-n`. |
+| 2 | `name` | `Example` | Display name prefix: instance `n` is named `<name> (n)`. Match `fly-name`. |
+| 3 | `count` | `10` | How many instances to install, `1` to `count`. Match `fly-count`. |
+| 4 | `base-port` | `4001` | Public port of the first instance; instance `n` is served at `http://<ip>:<base-port + n - 1>`. Match `fly-base-port`. |
+
+Then run `cd ~/purrfect-seeker && ./seeker list-servers` to see each server's id and key.
+
 ## Setup
 
 ```sh
@@ -40,6 +82,17 @@ The database is `db/database.sqlite`; tests use an in-memory database.
 ./seeker list-servers             # list servers with their keys
 ./seeker remove-server <serverId>
 ```
+
+`add-server` also takes `--name`, `--address`, `--id` and `--key`. Fields given as flags are not asked;
+with `--name`, the missing optional fields are left blank and nothing is asked:
+
+```sh
+./seeker add-server --name "Example (1)" --address "http://1.2.3.4:4001"
+```
+
+Add `--skip-existing` to do nothing when a server with the same name is already registered.
+
+`list-servers --json` prints the same rows as JSON, for scripts.
 
 Rules, enforced by the CLI prompts and again by the model on every write:
 

@@ -7,15 +7,22 @@ export default function registerListServers(program) {
   program
     .command("list-servers")
     .description("List servers")
+    .option("--json", "print the servers as JSON")
     .action(
-      defineAction(async ({ Server }) => {
+      defineAction(async ({ Server }, flags) => {
         const servers = await Server.unscoped().findAll({
           attributes: ["name", "address", "key", "id"],
           raw: true,
         });
+        const sorted = sortByName(servers);
+
+        if (flags.json) {
+          console.log(JSON.stringify(sorted));
+          return;
+        }
 
         console.log(chalk.bold.green("Servers retrieved!"));
-        console.table(sortByName(servers));
+        console.table(sorted);
       })
     );
 }
