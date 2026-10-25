@@ -2,23 +2,29 @@
 
 # Installs Purrfect Seeker and optionally registers Purrfect Fly instances.
 # Usage: install.sh [port] [fly-name] [fly-count] [fly-base-port]
-# Seeker is reachable at http://<ip>:<port> through Nginx.
+# Seeker is reachable at http://<ip>:<port> through Nginx. Port defaults to the existing
+# site's port, or 3000; pass "" to keep it while registering Fly servers.
 # With fly-name, adds "<fly-name> (n)" at http://<ip>:<fly-base-port + n - 1>.
 
 set -e
 
-PORT="${1:-3000}"
+PORT_ARG="$1"
 FLY_NAME="$2"
 FLY_COUNT="${3:-10}"
 FLY_BASE_PORT="${4:-4001}"
 
-# Node listens on this offset from the public port, Nginx owns the public one
-INTERNAL_PORT_OFFSET=10000
-INTERNAL_PORT=$((PORT + INTERNAL_PORT_OFFSET))
-
 REPO_URL="https://github.com/purrfect-farmer/purrfect-seeker.git"
 APP_DIR="$HOME/purrfect-seeker"
 NGINX_SITE="purrfect-seeker"
+NGINX_SITE_PATH="/etc/nginx/sites-available/$NGINX_SITE"
+
+# Without a port argument, keep the port of an existing site
+existing_port=$(grep -m1 -oE "listen [0-9]+" "$NGINX_SITE_PATH" 2> /dev/null | grep -oE "[0-9]+" || true)
+PORT="${PORT_ARG:-${existing_port:-3000}}"
+
+# Node listens on this offset from the public port, Nginx owns the public one
+INTERNAL_PORT_OFFSET=10000
+INTERNAL_PORT=$((PORT + INTERNAL_PORT_OFFSET))
 
 # Colors
 GREEN='\033[1;32m'
@@ -36,32 +42,32 @@ print_subheading() {
 }
 
 print_heading "Installing Nginx web server..."
-sudo apt-get update
-sudo apt-get upgrade -y
-sudo apt-get install \
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
+sudo -E apt-get update < /dev/null
+sudo -E apt-get upgrade -y < /dev/null
+sudo -E apt-get install \
 nginx \
 git \
 curl \
--y
+-y < /dev/null
 
 
 print_heading "Installing Node Version Manager (NVM) and Node.js LTS..."
 
-if [ -d "$HOME/.nvm" ]; then
-    print_subheading "NVM is already installed."
-    \. "$HOME/.nvm/nvm.sh"
-else
+if [ ! -s "$HOME/.nvm/nvm.sh" ]; then
     print_subheading "NVM is not installed. Proceeding with installation..."
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-
-    \. "$HOME/.nvm/nvm.sh"
-
-    nvm install --lts
-
-    npm i -g npm
-    npm i -g pnpm
-    npm i -g pm2
 fi
+
+\. "$HOME/.nvm/nvm.sh"
+
+if ! command -v node > /dev/null; then
+    nvm install --lts
+    npm i -g npm
+fi
+
+command -v pnpm > /dev/null || npm i -g pnpm
+command -v pm2 > /dev/null || npm i -g pm2
 
 
 print_heading "Setting up PM2 to run on startup..."
@@ -101,7 +107,8 @@ fi
 node_port=$(grep -E "^PORT=" .env | cut -d= -f2 | tr -d '"')
 if [ -z "$node_port" ] || [ "$node_port" = "$PORT" ]; then
     print_subheading "Setting Node to port $INTERNAL_PORT so Nginx can serve $PORT..."
-    sed -i "s|^PORT=.*|PORT=$INTERNAL_PORT|" .env
+    sed -i "/^PORT=/d" .env
+    echo "PORT=$INTERNAL_PORT" >> .env
     node_port="$INTERNAL_PORT"
 fi
 
@@ -114,7 +121,7 @@ pm2 save
 
 
 print_heading "Configuring Nginx as a reverse proxy..."
-cat <<EOF | sudo tee "/etc/nginx/sites-available/$NGINX_SITE" > /dev/null
+cat <<EOF | sudo tee "$NGINX_SITE_PATH" > /dev/null
 server {
     listen $PORT;
     listen [::]:$PORT;
@@ -135,7 +142,7 @@ server {
 EOF
 
 print_heading "Enabling Nginx site configuration..."
-sudo ln -sf "/etc/nginx/sites-available/$NGINX_SITE" "/etc/nginx/sites-enabled/$NGINX_SITE"
+sudo ln -sf "$NGINX_SITE_PATH" "/etc/nginx/sites-enabled/$NGINX_SITE"
 
 print_heading "Testing and reloading Nginx configuration..."
 sudo nginx -t
